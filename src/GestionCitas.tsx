@@ -233,7 +233,7 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
   const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null);
   const [initialCreateTime, setInitialCreateTime] = useState<string | undefined>(undefined);
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
 
   // Función para manejar errores de autenticación y cerrar sesión
   const handleAuthError = (err: any) => {

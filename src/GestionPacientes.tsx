@@ -186,7 +186,7 @@ const GestionPacientes = ({ onBack }: GestionPacientesProps) => { // Acepta la p
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<string | null>(null);
 
-  const API_BASE_URL = 'http://localhost:5000/api'; // URL base de tu API
+  const API_BASE_URL = import.meta.env.VITE_API_URL; 
 
   // Función para obtener pacientes
   const fetchPatients = async (searchQuery = '') => {
