@@ -5,12 +5,11 @@ import { useAuth } from './App';
 // <--- ¡CAMBIOS CLAVE EN LAS IMPORTACIONES AQUÍ!
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import type { Event as BigCalendarEvent } from 'react-big-calendar'; // Importación de tipo explícita
-// Eliminamos 'EventInteractionArgs' de aquí, ya que no es una exportación directa.
-
 import { format } from 'date-fns/format';
 import { parse } from 'date-fns/parse';
 import { startOfWeek } from 'date-fns/startOfWeek';
 import { getDay } from 'date-fns/getDay';
+import { addMinutes } from 'date-fns/addMinutes'; // <-- Nueva importación para calcular la duración
 import { es } from 'date-fns/locale/es';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
@@ -233,7 +232,8 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
   const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null);
   const [initialCreateTime, setInitialCreateTime] = useState<string | undefined>(undefined);
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL;
+  // <-- CAMBIO CLAVE: Se ajusta la URL base para incluir el prefijo /api -->
+  const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
 
   // Función para manejar errores de autenticación y cerrar sesión
   const handleAuthError = (err: any) => {
@@ -252,6 +252,7 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
       return;
     }
     try {
+      // <-- CAMBIO CLAVE: Se usa la ruta correcta con el prefijo /api -->
       const response = await fetch(`${API_BASE_URL}/citas`, {
         headers: {
           'Content-Type': 'application/json',
@@ -269,7 +270,20 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
         throw new Error(errorData.mensaje || `Error al obtener citas: ${response.statusText}`);
       }
       const data = await response.json();
-      setAppointments(data.citas);
+      if (data.citas) {
+        const fullAppointments = data.citas.map((appt: Appointment) => {
+          const patient = patients.find(p => p.id === appt.patientId);
+          const service = services.find(s => s.id === appt.serviceId);
+          return {
+            ...appt,
+            patient: patient || { id: appt.patientId, primerNombre: 'Desconocido', apellido: '' },
+            service: service || { id: appt.serviceId, name: 'Desconocido', duration: 30 },
+          };
+        });
+        setAppointments(fullAppointments);
+      } else {
+        setAppointments([]);
+      }
     } catch (err) {
       console.error('Error fetching appointments:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido al cargar citas.');
@@ -282,6 +296,7 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
   const fetchPatientsForModal = async () => {
     if (!token) return;
     try {
+      // <-- CAMBIO CLAVE: Se usa la ruta correcta con el prefijo /api -->
       const response = await fetch(`${API_BASE_URL}/pacientes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -305,6 +320,7 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
   const fetchServicesForModal = async () => {
     if (!token) return;
     try {
+      // <-- CAMBIO CLAVE: Se usa la ruta correcta con el prefijo /api -->
       const response = await fetch(`${API_BASE_URL}/servicios`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -326,10 +342,18 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
 
   // Efecto para cargar datos al montar el componente o cuando el token cambia
   useEffect(() => {
-    fetchAppointments();
     fetchPatientsForModal();
     fetchServicesForModal();
   }, [token]);
+
+  // Recargar citas cada vez que cambien los pacientes o servicios
+  useEffect(() => {
+    // Solo si patients y services ya se han cargado
+    if (patients.length > 0 && services.length > 0) {
+      fetchAppointments();
+    }
+  }, [patients, services, token]);
+
 
   // Función para crear o actualizar una cita
   const handleSaveAppointment = async (
@@ -347,18 +371,22 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
       return;
     }
 
-    const selectedPatient = patients.find(p => p.id === patientId);
-    if (!selectedPatient) {
-      setError('Paciente no encontrado.');
+    const selectedService = services.find(s => s.id === serviceId);
+    if (!selectedService) {
+      setError('Servicio no encontrado. Por favor, recarga la página.');
       setLoading(false);
       return;
     }
 
+    const startDateTime = new Date(startTime);
+    const endTime = addMinutes(startDateTime, selectedService.duration).toISOString();
+
+    // <-- CAMBIO CLAVE: Enviar el patientId, no el nombre y apellido -->
     const dataToSend = {
-      nombre: selectedPatient.primerNombre,
-      apellido: selectedPatient.apellido,
+      patientId,
       serviceId,
       startTime,
+      endTime,
       status,
     };
 
@@ -369,12 +397,14 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
         'Authorization': `Bearer ${token}`,
       };
       if (appointmentId) {
+        // <-- CAMBIO CLAVE: Se usa la ruta correcta con el prefijo /api -->
         response = await fetch(`${API_BASE_URL}/citas/${appointmentId}`, {
           method: 'PUT',
           headers: commonHeaders,
           body: JSON.stringify(dataToSend),
         });
       } else {
+        // <-- CAMBIO CLAVE: Se usa la ruta correcta con el prefijo /api -->
         response = await fetch(`${API_BASE_URL}/citas`, {
           method: 'POST',
           headers: commonHeaders,
@@ -411,6 +441,7 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
       return;
     }
     try {
+      // <-- CAMBIO CLAVE: Se usa la ruta correcta con el prefijo /api -->
       const response = await fetch(`${API_BASE_URL}/citas/${id}`, {
         method: 'DELETE',
         headers: {
@@ -499,7 +530,7 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
   // Define una interfaz local para los argumentos de los eventos de arrastrar/redimensionar
   interface DragResizeEventArguments {
     event: BigCalendarEvent;
-    start: Date | string; // 'start' y 'end' pueden ser Date o string
+    start: Date | string;
     end: Date | string;
     isAllDay?: boolean;
     resourceId?: any;
@@ -517,12 +548,13 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
     openEditModal(event.resource as Appointment);
   };
 
-  // <--- ¡CAMBIOS CLAVE EN LOS MANEJADORES DE DRAG AND DROP AQUÍ!
+  // <-- ¡CAMBIOS CLAVE EN LOS MANEJADORES DE DRAG AND DROP AQUÍ!
   const handleEventDrop = async ({ event, start, end }: DragResizeEventArguments) => {
     const originalAppointment = event.resource as Appointment;
-    // Asegurarse de que 'start' sea un objeto Date, ya que DragResizeEventArguments puede tenerlo como stringOrDate
     const updatedStartTime = (start instanceof Date ? start : new Date(start)).toISOString();
-
+    const selectedService = services.find(s => s.id === originalAppointment.serviceId);
+    if (!selectedService) return; // Salir si el servicio no se encuentra
+    const updatedEndTime = addMinutes(updatedStartTime, selectedService.duration).toISOString(); // Recalcular end time
     await handleSaveAppointment(
       originalAppointment.patientId,
       originalAppointment.serviceId,
@@ -534,9 +566,10 @@ const GestionCitas = ({ onBack }: GestionCitasProps) => {
 
   const handleEventResize = async ({ event, start, end }: DragResizeEventArguments) => {
     const originalAppointment = event.resource as Appointment;
-    // Asegurarse de que 'start' sea un objeto Date
     const updatedStartTime = (start instanceof Date ? start : new Date(start)).toISOString();
-
+    const selectedService = services.find(s => s.id === originalAppointment.serviceId);
+    if (!selectedService) return; // Salir si el servicio no se encuentra
+    const updatedEndTime = addMinutes(updatedStartTime, selectedService.duration).toISOString(); // Recalcular end time
     await handleSaveAppointment(
       originalAppointment.patientId,
       originalAppointment.serviceId,
