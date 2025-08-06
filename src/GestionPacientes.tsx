@@ -198,7 +198,7 @@ const GestionPacientes = ({ onBack }: GestionPacientesProps) => { // Acepta la p
       return;
     }
     try {
-      const url = searchQuery ? `${API_BASE_URL}/pacientes?search=${encodeURIComponent(searchQuery)}` : `${API_BASE_URL}/pacientes`;
+      const url = searchQuery ? `${API_BASE_URL}/api/pacientes?search=${encodeURIComponent(searchQuery)}` : `${API_BASE_URL}/api/pacientes`;
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
@@ -246,14 +246,14 @@ const GestionPacientes = ({ onBack }: GestionPacientesProps) => { // Acepta la p
       };
       if (id) {
         // Actualizar paciente
-        response = await fetch(`${API_BASE_URL}/pacientes/${id}`, {
+        response = await fetch(`${API_BASE_URL}/api/pacientes/${id}`, {
           method: 'PUT',
           headers: commonHeaders, // Usamos las cabeceras comunes
           body: JSON.stringify(patientData),
         });
       } else {
         // Crear paciente
-        response = await fetch(`${API_BASE_URL}/pacientes`, {
+        response = await fetch(`${API_BASE_URL}/api/pacientes`, {
           method: 'POST',
           headers: commonHeaders, // Usamos las cabeceras comunes
           body: JSON.stringify(patientData),
@@ -285,7 +285,7 @@ const GestionPacientes = ({ onBack }: GestionPacientesProps) => { // Acepta la p
       return;
     }
     try {
-      const response = await fetch(`${API_BASE_URL}/pacientes/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/pacientes/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`, // <--- AÑADIMOS EL TOKEN AQUÍ
